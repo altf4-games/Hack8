@@ -1794,7 +1794,16 @@ const HeroSection: React.FC = () => {
                           onClick={() => window.location.href = '/allgames'}
                         >
                           <div className="absolute -right-1 -top-1 bg-gradient-to-r from-blue-600 to-purple-600 text-white text-xs font-bold px-2 py-0.5 rounded-bl-md shadow-md transform rotate-0 scale-100 group-hover:scale-110 transition-transform">PRO</div>
-                          <span className="mr-2 relative z-10 group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-blue-500 group-hover:to-purple-600 transition-all duration-300">All Games</span>
+                            <span className="mr-2 relative z-10 group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-blue-500 group-hover:to-purple-600 transition-all duration-300">All Games</span>
+                          <span className="absolute inset-0 w-4 h-full bg-gradient-to-r from-transparent via-purple-100 dark:via-purple-900/20 to-transparent -translate-x-full animate-shimmer group-hover:animate-none opacity-0 group-hover:opacity-100 transition-opacity"></span>
+                          </Button>
+                                                  <Button 
+                          variant="outline" 
+                          className="text-lg py-6 px-8 dark:text-white dark:border-gray-600 relative overflow-hidden group bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 hover:shadow-lg transition-all duration-300 border-2 hover:border-purple-400"
+                          onClick={() => window.location.href = '/explore'}
+                        >
+                          <div className="absolute -right-1 -top-1 bg-gradient-to-r from-blue-600 to-purple-600 text-white text-xs font-bold px-2 py-0.5 rounded-bl-md shadow-md transform rotate-0 scale-100 group-hover:scale-110 transition-transform">PRO</div>
+                            <span className="mr-2 relative z-10 group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-blue-500 group-hover:to-purple-600 transition-all duration-300">Explore</span>
                           <span className="absolute inset-0 w-4 h-full bg-gradient-to-r from-transparent via-purple-100 dark:via-purple-900/20 to-transparent -translate-x-full animate-shimmer group-hover:animate-none opacity-0 group-hover:opacity-100 transition-opacity"></span>
                         </Button>
                       </div>

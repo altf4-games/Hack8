@@ -63,6 +63,10 @@ public class Experiment : MonoBehaviour
                 material.SetColor("_Colour", Color.cyan);
             else if (liquid == LiquidType.SodiumChloride)
                 material.SetColor("_Colour", Color.white);
+            else if (liquid == LiquidType.Chlorine)
+                material.SetColor("_Colour", Color.green);
+            else if (liquid == LiquidType.Hcl)
+                material.SetColor("_Colour", Color.white);
         }
 
         StartCoroutine(LiquidFill());
@@ -103,9 +107,14 @@ public class Experiment : MonoBehaviour
         {
             material.SetColor("_Colour", new Color(0.6f, 0.4f, 0.1f)); // Brown-yellow
         }
+        else if ((a == LiquidType.Hcl && b == LiquidType.SodiumChloride) || (a == LiquidType.SodiumChloride && b == LiquidType.Hcl))
+        {
+            material.SetColor("_Colour", new Color(1.0f, 0.4f, 0.7f)); // Pink color for titration reaction
+            Debug.Log("HCl and NaOH reacted to form a pink solution!");
+        }
         else
         {
-            material.SetColor("_Colour", Color.black); // Unknown mix
+            material.SetColor("_Colour", Color.black);
         }
     }
 
