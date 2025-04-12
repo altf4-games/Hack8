@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Loader2, BookOpen, Brain, Grid2X2, Upload, FileText, RefreshCw, ArrowLeft, Crown, Lock, ChevronRight } from 'lucide-react';
+import { Loader2, BookOpen, Brain, Grid2X2, Upload, FileText, TestTube, RefreshCw, ArrowLeft, ChevronRight, Beaker } from 'lucide-react';
 // Import the Flashcards component
 import Flashcards, { Flashcard } from './games/flashcard/FlashCards';
 import { FlashcardGenerator } from './games/flashcard/flashcard-utils';
@@ -53,12 +53,8 @@ const AIGamesPage = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [activeGame, setActiveGame] = useState<string | null>(null);
-  const [showUploadSection, setShowUploadSection] = useState(true);
-  
-  // Function to handle subscription redirection
-  const handleSubscribeClick = () => {
-    router.push('/subscriptions');
-  };
+  const [showUploadSection, setShowUploadSection] = useState(false);
+  const [showLabSimulation, setShowLabSimulation] = useState(true);
   
   // Check auth state on component mount
   useEffect(() => {
@@ -71,14 +67,6 @@ const AIGamesPage = () => {
     
     return () => clearTimeout(checkAuth);
   }, []);
-
-  // Update upload section visibility when data is processed
-  useEffect(() => {
-    if (processedData) {
-      // Hide upload section when data is processed
-      setShowUploadSection(false);
-    }
-  }, [processedData]);
 
   // Handle drag over event
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
@@ -96,23 +84,44 @@ const AIGamesPage = () => {
     e.preventDefault();
     setIsDragging(false);
     
-    // Show pro subscription message instead of processing
-    toast.info("This feature requires a Pro subscription");
-    setFileError(null);
+    const droppedFiles = Array.from(e.dataTransfer.files);
+    if (droppedFiles.length > 0) {
+      const selectedFile = droppedFiles[0];
+      if (checkFileType(selectedFile)) {
+        setFile(selectedFile);
+        setFileError(null);
+        toast.success(`File "${selectedFile.name}" selected successfully!`);
+      } else {
+        setFileError("Unsupported file type. Please use PDF, PPT, Word, Excel, or Text files.");
+        toast.error("Unsupported file type");
+      }
+    }
   };
 
   // Handle file input change
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Show pro subscription message instead of processing
-    toast.info("This feature requires a Pro subscription");
-    setFileError(null);
+    if (e.target.files && e.target.files.length > 0) {
+      const selectedFile = e.target.files[0];
+      if (checkFileType(selectedFile)) {
+        setFile(selectedFile);
+        setFileError(null);
+        toast.success(`File "${selectedFile.name}" selected successfully!`);
+      } else {
+        setFileError("Unsupported file type. Please use PDF, PPT, Word, Excel, or Text files.");
+        toast.error("Unsupported file type");
+      }
+    }
   };
 
   // Handle text input submission
   const handleTextSubmit = () => {
-    // Show pro subscription message instead of processing
-    toast.info("This feature requires a Pro subscription");
-    setFileError(null);
+    if (customText.trim().length > 0) {
+      toast.success("Text content received! Processing...");
+      // Process the text content
+    } else {
+      setFileError("Please enter some text content before submitting.");
+      toast.error("Empty content");
+    }
   };
 
   // Check if file type is supported
@@ -121,45 +130,86 @@ const AIGamesPage = () => {
     return SUPPORTED_FILE_TYPES.some(ext => fileName.endsWith(ext));
   };
 
-  // Reset to upload - redirects to subscription page in this version
+  // Reset to upload
   const handleResetToUpload = () => {
-    toast.info("This feature requires a Pro subscription");
+    setShowUploadSection(true);
+    setShowLabSimulation(false);
+    setActiveGame(null);
+    setProcessedData(null);
+    setFile(null);
+    setCustomText('');
+    setFileError(null);
   };
 
-  // Handle game selection - redirects to subscription page in this version
+  // Handle game selection
   const handleGameSelect = (gameType: string) => {
-    toast.info("This feature requires a Pro subscription");
+    if (gameType === 'labsim') {
+      setActiveGame('labsim');
+      setShowLabSimulation(true);
+      setShowUploadSection(false);
+    } else {
+      toast.info(`Starting ${gameType} game mode`);
+      setActiveGame(gameType);
+    }
   };
 
   // Handle Try it Now button click
   const handleTryItNowClick = () => {
-    toast.info("This feature requires a Pro subscription");
     if (fileInputRef.current) {
       fileInputRef.current.click();
     }
   };
 
-  // Render top banner for Pro Subscription
-  const renderProBanner = () => (
+  // Render lab simulation section
+  const renderLabSimulation = () => (
     <motion.div
-      initial={{ opacity: 0, y: -10 }}
+      initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-4 rounded-xl mb-8 shadow-lg"
+      exit={{ opacity: 0, y: -20 }}
+      transition={{ duration: 0.5 }}
+      className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mb-10"
     >
-      <div className="flex flex-col md:flex-row items-center justify-between">
-        <div className="flex items-center mb-4 md:mb-0">
-          <Crown className="h-6 w-6 mr-2 text-yellow-300" />
-          <div>
-            <h3 className="font-bold text-lg">Coming Soon: Pro Feature</h3>
-            <p>AI Games will be available exclusively for Pro subscribers</p>
-          </div>
-        </div>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center">
+          <Beaker className="h-6 w-6 mr-2 text-green-500" />
+          Chemistry Lab Simulation
+        </h2>
         <Button 
-          onClick={handleSubscribeClick}
-          className="bg-white text-blue-600 hover:bg-blue-50 flex items-center gap-1"
+          variant="outline" 
+          onClick={handleResetToUpload}
+          className="flex items-center gap-1"
         >
-          Upgrade to Pro <ChevronRight size={16} />
+          <ArrowLeft size={16} /> Back
         </Button>
+      </div>
+      
+      <div className="mb-4">
+        <p className="text-gray-600 dark:text-gray-300">
+          Experience an interactive chemistry lab simulation where you can conduct experiments in a virtual environment.
+        </p>
+      </div>
+      
+      <div className="relative pt-4 pb-8 overflow-hidden rounded-lg">
+        <iframe 
+          frameBorder="0" 
+          src="https://itch.io/embed-upload/13358418?color=333333" 
+          allowFullScreen 
+          className="mx-auto w-full rounded-lg shadow-lg"
+          style={{ height: "740px" }}
+        >
+          <a href="https://chirags.itch.io/lab-sim">Play Lab Sim on itch.io</a>
+        </iframe>
+      </div>
+      
+      <div className="mt-6 bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
+        <h3 className="font-bold text-gray-900 dark:text-white mb-2">How to use the lab simulation:</h3>
+        <ul className="list-disc pl-5 space-y-1 text-gray-600 dark:text-gray-300">
+          <li>Navigate the lab environment using your mouse and keyboard</li>
+          <li>Interact with lab equipment by clicking on them</li>
+          <li>Follow the on-screen instructions to complete experiments</li>
+          <li>Watch chemical reactions in real-time</li>
+          <li>Learn about chemical properties and reactions through hands-on experience</li>
+        </ul>
       </div>
     </motion.div>
   );
@@ -171,19 +221,8 @@ const AIGamesPage = () => {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
       transition={{ duration: 0.5 }}
-      className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mb-10 relative"
+      className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mb-10"
     >
-      {/* Overlay for Pro feature */}
-      <div className="absolute inset-0 bg-gray-900/10 backdrop-blur-[1px] rounded-xl flex items-center justify-center z-10">
-        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-lg text-center">
-          <Lock className="h-8 w-8 mx-auto mb-2 text-blue-500" />
-          <p className="text-gray-800 dark:text-white font-bold mb-2">Pro Feature</p>
-          <Button onClick={handleSubscribeClick} className="bg-blue-600">
-            Upgrade to Pro
-          </Button>
-        </div>
-      </div>
-      
       <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
         Upload Your Learning Material
       </h2>
@@ -298,35 +337,38 @@ const AIGamesPage = () => {
 
   // Render game cards
   const renderGameCards = () => {
-    // Default game data
+    // Updated game data
     const gameData = [
+      {
+        id: 'labsim',
+        title: 'Chemistry Lab Simulation',
+        description: 'Interactive 3D chemistry lab with real experiments',
+        icon: <TestTube className="h-8 w-8 text-green-500" />,
+        featured: true
+      },
       {
         id: 'flashcards',
         title: 'Flashcards',
         description: 'Test your knowledge with AI-generated flashcards',
         icon: <BookOpen className="h-8 w-8 text-blue-500" />,
-        comingSoon: true
       },
       {
         id: 'Cricket',
         title: 'Cricket',
         description: 'Answer Questions to score better!',
         icon: <Brain className="h-8 w-8 text-indigo-500" />,
-        comingSoon: true
       },
       {
         id: 'Sail the Ship',
         title: 'Sail the Ship',
         description: 'Dont Let The Ship Sink!',
-        icon: <BookOpen className="h-8 w-8 text-green-500" />,
-        comingSoon: true
+        icon: <BookOpen className="h-8 w-8 text-orange-500" />,
       },
       {
         id: 'Poki Battle',
         title: 'Poki Battle',
         description: 'Answer Questions to Fight Poki Monkeys',
         icon: <Grid2X2 className="h-8 w-8 text-purple-500" />,
-        comingSoon: true
       }
     ];
 
@@ -343,23 +385,18 @@ const AIGamesPage = () => {
             className="h-full"
           >
             <Card 
-              className="h-full cursor-pointer hover:shadow-lg transition-all relative overflow-hidden"
+              className={`h-full cursor-pointer hover:shadow-lg transition-all relative overflow-hidden ${
+                game.featured ? 'border-2 border-green-500' : ''
+              }`}
               onClick={() => handleGameSelect(game.id)}
             >
-              {/* Overlay for Pro feature */}
-              <div className="absolute inset-0 bg-gray-900/30 backdrop-blur-[1px] flex items-center justify-center z-10">
-                <div className="bg-white dark:bg-gray-800 p-2 rounded-full">
-                  <Lock className="h-5 w-5 text-blue-500" />
-                </div>
-              </div>
-              
               <CardHeader>
                 <div className="flex items-center justify-between">
                   {game.icon}
                   
-                  {game.comingSoon && (
-                    <span className="px-2 py-1 bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-100 text-xs font-bold rounded-full">
-                      Coming Soon
+                  {game.featured && (
+                    <span className="px-2 py-1 bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100 text-xs font-bold rounded-full">
+                      Featured
                     </span>
                   )}
                 </div>
@@ -375,10 +412,13 @@ const AIGamesPage = () => {
               </CardContent>
               <CardFooter>
                 <Button 
-                  className="w-full bg-gray-400 hover:bg-gray-500"
-                  onClick={handleSubscribeClick}
+                  className={`w-full ${
+                    game.id === 'labsim' 
+                      ? 'bg-green-600 hover:bg-green-700'
+                      : 'bg-blue-600 hover:bg-blue-700'
+                  }`}
                 >
-                  Pro Feature
+                  {game.id === 'labsim' ? 'Play Now' : 'Start Game'}
                 </Button>
               </CardFooter>
             </Card>
@@ -397,16 +437,13 @@ const AIGamesPage = () => {
           animate={{ opacity: 1, y: 0 }}
           className="text-center mb-8"
         >
-          <h1 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-700 sm:text-5xl sm:tracking-tight">
-            <span className="block">AI-Powered Learning Games</span>
+          <h1 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-green-600 to-blue-700 sm:text-5xl sm:tracking-tight">
+            <span className="block">Interactive Learning Games</span>
           </h1>
           <p className="mt-3 max-w-md mx-auto text-lg text-gray-500 dark:text-gray-400 sm:text-xl">
-            Transform any document into interactive learning experiences with the power of AI
+            Experience chemistry through interactive simulations and games
           </p>
         </motion.div>
-        
-        {/* Pro Banner */}
-        {renderProBanner()}
         
         {/* Main content */}
         <div>
@@ -421,22 +458,26 @@ const AIGamesPage = () => {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
             >
+              {/* Lab Simulation Display */}
+              {showLabSimulation && renderLabSimulation()}
+              
               {/* Upload section */}
-              {renderUploadSection()}
+              {showUploadSection && renderUploadSection()}
               
               {/* Games section */}
               <div className="mb-12">
                 <motion.h2 
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="text-2xl font-bold text-gray-900 dark:text-white mb-6"
+                  className="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center"
                 >
-                  Available Games
+                  <Grid2X2 className="h-6 w-6 mr-2 text-blue-500" />
+                  Available Learning Games
                 </motion.h2>
                 {renderGameCards()}
               </div>
               
-              {/* Pro subscription info */}
+              {/* Feature info */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -445,18 +486,18 @@ const AIGamesPage = () => {
                 <div className="flex flex-col md:flex-row items-center justify-between">
                   <div className="mb-4 md:mb-0">
                     <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                      <Crown className="h-5 w-5 text-amber-500" />
-                      Unlock with Pro Subscription
+                      <Beaker className="h-5 w-5 text-green-500" />
+                      Interactive Chemistry Learning
                     </h3>
                     <p className="text-gray-600 dark:text-gray-400 mt-1">
-                      Get access to AI-powered learning games and many more features.
+                      Experience chemistry concepts through hands-on virtual experiments and games.
                     </p>
                   </div>
                   <Button 
-                    onClick={handleSubscribeClick}
-                    className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+                    onClick={() => handleGameSelect('labsim')}
+                    className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700"
                   >
-                    View Plans
+                    Try Lab Simulation
                   </Button>
                 </div>
               </motion.div>
