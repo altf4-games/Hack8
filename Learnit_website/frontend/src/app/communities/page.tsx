@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { useCallback, ChangeEvent, FormEvent } from "react";
 import { toast } from "sonner";
 import { X } from "lucide-react";
+import { uploadToCloudinary } from "../utils/cloudinary";
 
 interface FileWithPreview extends File {
   preview?: string;
@@ -42,6 +43,7 @@ const CollegeNotesPage: FC = () => {
     files: []
   });
   const [isUploading, setIsUploading] = useState<boolean>(false);
+  const [uploadProgress, setUploadProgress] = useState<{[key: string]: number}>({});
   
   // Mock data for universities and majors
   const universities = [
@@ -62,7 +64,7 @@ const CollegeNotesPage: FC = () => {
     }));
   };
   
-  const handleFileUpload = (e: ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     e.preventDefault();
     if (!e.target.files) return;
     
@@ -90,6 +92,95 @@ const CollegeNotesPage: FC = () => {
         files: newFiles
       };
     });
+  };
+
+  const submitForm = async (e: FormEvent) => {
+    e.preventDefault();
+    
+    // Validate form data
+    if (!formData.title || !formData.university || !formData.course || !formData.files.length) {
+      toast.error("Please fill in all required fields and upload at least one file");
+      return;
+    }
+    
+    setIsUploading(true);
+    
+    try {
+      // Create a copy of progress state object to update during uploads
+      const progressState = { ...uploadProgress };
+      
+      // Upload each file to Cloudinary
+      const uploadPromises = formData.files.map(async (file, index) => {
+        // Create a unique key for tracking this file's upload progress
+        const fileKey = `${index}-${file.name}`;
+        progressState[fileKey] = 0;
+        setUploadProgress(progressState);
+        
+        try {
+          // Upload to Cloudinary
+          const result = await uploadToCloudinary(file, 'college-notes');
+          
+          // Update progress to 100% when complete
+          progressState[fileKey] = 100;
+          setUploadProgress({ ...progressState });
+          
+          return {
+            fileName: file.name,
+            fileType: file.type,
+            fileSize: file.size,
+            cloudinaryUrl: result.secure_url,
+            cloudinaryPublicId: result.public_id
+          };
+        } catch (error) {
+          console.error(`Error uploading ${file.name}:`, error);
+          progressState[fileKey] = -1; // Use -1 to indicate error
+          setUploadProgress({ ...progressState });
+          throw error;
+        }
+      });
+      
+      // Wait for all uploads to complete
+      const uploadedFiles = await Promise.all(uploadPromises);
+      
+      // Prepare data to send to backend
+      const notesData = {
+        title: formData.title,
+        university: formData.university,
+        course: formData.course,
+        professor: formData.professor,
+        semester: formData.semester,
+        tags: formData.tags.split(',').map(tag => tag.trim()),
+        description: formData.description,
+        files: uploadedFiles,
+        // Add any additional data like author ID, etc.
+      };
+      
+      // Here you would typically send this data to your backend API
+      // For now, we'll just show a success message
+      console.log("Notes data to submit:", notesData);
+      
+      toast.success("Notes uploaded successfully!");
+      
+      // Reset form
+      setFormData({
+        title: "",
+        university: "",
+        course: "",
+        professor: "",
+        semester: "",
+        tags: "",
+        description: "",
+        files: []
+      });
+      
+      setUploadProgress({});
+      setUploadMode(false);
+    } catch (error) {
+      console.error("Error submitting form:", error);
+      toast.error("Failed to upload notes. Please try again.");
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   // Mock notes data
@@ -520,15 +611,44 @@ const CollegeNotesPage: FC = () => {
                           <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Uploaded Files:</p>
                           <div className="space-y-2">
                             {formData.files.map((file, index) => (
-                              <div key={index} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700 rounded-md">
-                                <span className="text-sm text-gray-700 dark:text-gray-300 truncate max-w-xs">{file.name}</span>
-                                <button 
-                                  type="button" 
-                                  onClick={() => removeFile(index)}
-                                  className="text-gray-500 hover:text-red-500"
-                                >
-                                  <X className="h-4 w-4" />
-                                </button>
+                              <div key={index} className="flex flex-col p-2 bg-gray-50 dark:bg-gray-700 rounded-md">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-sm text-gray-700 dark:text-gray-300 truncate max-w-xs">{file.name}</span>
+                                  <button 
+                                    type="button" 
+                                    onClick={() => removeFile(index)}
+                                    className="text-gray-500 hover:text-red-500"
+                                    disabled={isUploading}
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </button>
+                                </div>
+                                
+                                {/* Upload progress bar */}
+                                {isUploading && uploadProgress[`${index}-${file.name}`] !== undefined && (
+                                  <div className="mt-1">
+                                    <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-1.5 mt-1">
+                                      <div 
+                                        className={`h-1.5 rounded-full ${
+                                          uploadProgress[`${index}-${file.name}`] === -1
+                                            ? 'bg-red-500'
+                                            : 'bg-gradient-to-r from-blue-500 to-indigo-600'
+                                        }`}
+                                        style={{ width: `${uploadProgress[`${index}-${file.name}`] === -1 ? 100 : uploadProgress[`${index}-${file.name}`]}%` }}
+                                      ></div>
+                                    </div>
+                                    <div className="flex justify-end mt-0.5">
+                                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                                        {uploadProgress[`${index}-${file.name}`] === -1
+                                          ? 'Error'
+                                          : uploadProgress[`${index}-${file.name}`] === 100
+                                            ? 'Completed'
+                                            : `${uploadProgress[`${index}-${file.name}`]}%`
+                                        }
+                                      </span>
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             ))}
                           </div>
@@ -540,6 +660,7 @@ const CollegeNotesPage: FC = () => {
                       <Button 
                         className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white py-3"
                         disabled={isUploading}
+                        onClick={submitForm}
                       >
                         <Upload className="h-4 w-4 mr-2" />
                         {isUploading ? "Uploading..." : "Share Notes with Students"}

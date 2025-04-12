@@ -209,10 +209,20 @@ const Navigation: FC<NavigationProps> = () => {
   const renderMenuItems = () => {
     return (
       <>
-        <Link
+       <Link
           href="/contact"
           >
           <span>Contact Us</span>
+        </Link>
+        <Link
+          href="/explore"
+          >
+          <span>Explore</span>
+        </Link>
+        <Link
+          href="/allgames"
+          >
+          <span>Labs</span>
         </Link>
         <ARVRNavButton isARVRPage={isARVRPage} />
         

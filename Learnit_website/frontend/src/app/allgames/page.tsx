@@ -438,7 +438,7 @@ const AIGamesPage = () => {
           className="text-center mb-8"
         >
           <h1 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-green-600 to-blue-700 sm:text-5xl sm:tracking-tight">
-            <span className="block">Interactive Learning Games</span>
+            <span className="block">Interactive Learning Laboratories</span>
           </h1>
           <p className="mt-3 max-w-md mx-auto text-lg text-gray-500 dark:text-gray-400 sm:text-xl">
             Experience chemistry through interactive simulations and games
