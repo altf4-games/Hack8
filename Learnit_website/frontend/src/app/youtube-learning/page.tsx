@@ -362,8 +362,8 @@ const YouTubeLearningPage = () => {
       const videoId = extractVideoId(searchQuery);
       
       if (videoId) {
-        // Load video instantly if ID is found
-        loadVideoInstantly(videoId);
+        // Redirect to video page if ID is found
+        router.push(`/youtube-learning/${videoId}`);
         setIsSearching(false);
       } else {
         const response = await fetch('/api/youtube/search', {
@@ -387,7 +387,7 @@ const YouTubeLearningPage = () => {
 
   // Handle video selection from search results or recommendations
   const handleVideoSelect = (video: VideoSearchResult | RecommendedVideo) => {
-    loadVideoInstantly(video.id);
+    router.push(`/youtube-learning/${video.id}`);
   };
 
   // Generate summary
@@ -726,7 +726,7 @@ const YouTubeLearningPage = () => {
                 <Card 
                   key={video.id} 
                   className="cursor-pointer hover:shadow-lg transition-shadow"
-                  onClick={() => router.push(`/youtube-learning/${video.id}`)}
+                  onClick={() => handleVideoSelect(video)}
                 >
                   <CardContent className="p-4">
                     <div className="relative h-40 w-full mb-2">

@@ -37,10 +37,57 @@ export async function POST(request: Request) {
     // Generate summary using Gemini
     let summary = '';
     try {
-      const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
-      const prompt = `Summarize this YouTube video about ${snippet.title}:\n\n${transcript}\n\nProvide a concise summary focusing on the main points and key takeaways.`;
+      const model = genAI.getGenerativeModel({ 
+        model: 'gemini-2.0-flash',
+        generationConfig: {
+          temperature: 0.7,
+          topK: 40,
+          topP: 0.95,
+          maxOutputTokens: 1024,
+        }
+      });
       
-      const result = await model.generateContent(prompt);
+      const prompt = `Summarize this YouTube video about ${snippet.title}:
+
+Below is the transcript of the video. Create a visually appealing, well-structured summary optimized for a display following these guidelines:
+
+1. Start with a captivating title using "# " format (use the video title or create a more concise one).
+2. Add a brief overview (2-3 sentences) of what the video covers, formatted with some visual separation.
+3. Create 3-4 clear subheadings using "## " format that organize the main topics.
+4. Under each subheading:
+   - Use elegant bullet points (• ) with proper spacing and indentation
+   - Format each bullet with adequate whitespace between points
+   - Use **bold text** for important concepts and *italics* for emphasis
+   - Keep points visually distinct with clean breaks between them
+5. End with a "## Key Takeaways" section containing 3-4 well-formatted bullet points.
+
+IMPORTANT FORMATTING REQUIREMENTS:
+- Include empty lines between major sections for visual breathing room
+- Use horizontal dividers (---) between major sections if appropriate
+- Consider using emoji sparingly for visual interest (📌, 🔑, 💡, ✅) at key points
+- Structure the content to fit comfortably in a display
+
+TRANSCRIPT:
+${transcript.substring(0, 15000)}`;
+      
+      const chat = model.startChat({
+        history: [],
+        generationConfig: {
+          maxOutputTokens: 1024,
+        },
+      });
+
+      // Execute the generation with a timeout of 30 seconds
+      const result = await Promise.race([
+        chat.sendMessage(prompt),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("Gemini API timeout after 30 seconds")), 30000)
+        ),
+      ]);
+      
+      // Handle the timeout case
+      if (result instanceof Error) throw result;
+      
       const response = await result.response;
       summary = response.text();
     } catch (error) {

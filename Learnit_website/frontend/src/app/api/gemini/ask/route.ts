@@ -52,44 +52,53 @@ export async function POST(request: Request) {
     try {
       // Initialize the Gemini API
       const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-      
-      // Configure safety settings
-      const safetySettings = [
-        {
-          category: HarmCategory.HARM_CATEGORY_HARASSMENT,
-          threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+      const model = genAI.getGenerativeModel({ 
+        model: "gemini-2.0-flash",
+        generationConfig: {
+          temperature: 0.3, // Lower temperature for more factual responses
+          topK: 40,
+          topP: 0.95,
+          maxOutputTokens: 800,
         },
-        {
-          category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
-          threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
-        },
-        {
-          category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
-          threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
-        },
-        {
-          category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-          threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
-        },
-      ];
-      
-      // Generate content with proper configuration
-      const generationConfig = {
-        temperature: 0.3, // Lower temperature for more factual responses
-        topK: 40,
-        topP: 0.95,
-        maxOutputTokens: 800,
-      };
-      
-      // Execute the generation
-      const result = await model.generateContent({
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig,
-        safetySettings,
+        safetySettings: [
+          {
+            category: HarmCategory.HARM_CATEGORY_HARASSMENT,
+            threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+          },
+          {
+            category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+            threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+          },
+          {
+            category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+            threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+          },
+          {
+            category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+            threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+          },
+        ]
       });
       
-      const response = result.response;
+      const chat = model.startChat({
+        history: [],
+        generationConfig: {
+          maxOutputTokens: 800,
+        },
+      });
+
+      // Execute the generation with a timeout of 30 seconds
+      const result = await Promise.race([
+        chat.sendMessage(prompt),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("Gemini API timeout after 30 seconds")), 30000)
+        ),
+      ]);
+      
+      // Handle the timeout case
+      if (result instanceof Error) throw result;
+      
+      const response = await result.response;
       const answer = response.text();
       
       return NextResponse.json({ answer });
@@ -97,7 +106,7 @@ export async function POST(request: Request) {
       console.error('Error using GoogleGenerativeAI library:', error);
       
       // Fallback to direct API call if the library approach fails
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`, {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

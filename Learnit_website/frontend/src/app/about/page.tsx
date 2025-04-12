@@ -97,7 +97,7 @@ const AboutPage = () => {
               <div className="aspect-w-16 aspect-h-9 relative">
                 <Image 
                   src="/api/placeholder/1200/675" 
-                  alt="LearnIt.com Team" 
+                  alt="Quizitt Team" 
                   width={1200} 
                   height={675}
                   className="object-cover"
@@ -128,7 +128,7 @@ const AboutPage = () => {
               <h2 className="text-3xl font-bold mb-6 text-gray-900 dark:text-white">Our Mission</h2>
               <div className="space-y-6">
                 <p className="text-lg text-gray-600 dark:text-gray-300">
-                  At LearnIt.com, we believe that education should adapt to each student, not the other way around. Our mission is to create AI-driven learning tools that understand individual needs and provide personalized learning journeys.
+                  At Quizitt, we believe that education should adapt to each student, not the other way around. Our mission is to create AI-driven learning tools that understand individual needs and provide personalized learning journeys.
                 </p>
                 <p className="text-lg text-gray-600 dark:text-gray-300">
                   We're building technology that makes quality education more accessible, engaging, and effective for everyone. Our adaptive quizzes evolve with you, focusing on what you need to learn most.
@@ -315,7 +315,7 @@ const AboutPage = () => {
           >
             <h2 className="text-3xl font-bold mb-4 text-gray-900 dark:text-white">Our Core Values</h2>
             <p className="text-lg text-gray-600 dark:text-gray-300 mb-12">
-              These principles guide everything we do at LearnIt.com, from product development to customer support.
+              These principles guide everything we do at Quizitt, from product development to customer support.
             </p>
           </motion.div>
 
@@ -523,7 +523,7 @@ const AboutPage = () => {
               <div className="relative h-64 md:h-auto">
                 <Image 
                   src="/api/placeholder/600/480" 
-                  alt="Students using LearnIt.com" 
+                  alt="Students using Quizitt" 
                   fill
                   className="object-cover"
                 />
