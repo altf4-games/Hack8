@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 7afc0330cbd9f6f488a7de84f3c3ff55
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 21893
+  packageName: True Explosions!
+  packageVersion: 1.0
+  assetPath: Assets/True Explosions/System/Prefabs/SampleParticleSystem.prefab
+  uploadId: 22155

@@ -1,10 +1,12 @@
 using UnityEngine;
+using TMPro;
 
 public class HighlightScript : MonoBehaviour
 {
     private GameObject currentHighlightedObject;
     private Material originalMaterial;
     public Color highlightColor = Color.yellow;
+    public TextMeshProUGUI text;
 
     private void Update()
     {
@@ -15,6 +17,16 @@ public class HighlightScript : MonoBehaviour
         {
             if (hit.transform.tag != "Interactable")
                 return;
+
+            if (hit.transform.GetComponent<PickBeaker>() != null)
+            {
+                text.text = hit.transform.GetComponent<PickBeaker>().liquidType.ToString();
+            }
+            else
+            {
+                text.text = "";
+            }
+
             GameObject hitObject = hit.transform.gameObject;
 
             if (currentHighlightedObject != hitObject)
@@ -37,6 +49,7 @@ public class HighlightScript : MonoBehaviour
         else
         {
             ResetHighlight();
+            text.text = "";
         }
     }
 
