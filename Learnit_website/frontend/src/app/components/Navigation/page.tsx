@@ -222,7 +222,7 @@ const Navigation: FC<NavigationProps> = () => {
         <Link
           href="/allgames"
           >
-          <span>Games</span>
+          <span>Labs</span>
         </Link>
         <ARVRNavButton isARVRPage={isARVRPage} />
         
