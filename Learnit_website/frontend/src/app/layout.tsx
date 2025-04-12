@@ -95,6 +95,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        <Script 
+          src="https://upload-widget.cloudinary.com/global/all.js" 
+          strategy="beforeInteractive"
+        />
+        
         <Script
           id="structured-data"
           type="application/ld+json"
