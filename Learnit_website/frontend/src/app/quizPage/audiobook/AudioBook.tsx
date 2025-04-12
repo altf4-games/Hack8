@@ -1,0 +1,841 @@
+'use client'
+import React, { useState, useRef, useEffect } from 'react';
+import { Button } from "@/components/ui/button";
+import { Slider } from "@/components/ui/slider";
+import { 
+  Play, 
+  Pause, 
+  SkipForward, 
+  SkipBack, 
+  Volume2, 
+  VolumeX,
+  Download,
+  RefreshCw
+} from "lucide-react";
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import ProAudiobookWrapper from './AudiBookPro';
+
+
+// Import the proper types from their respective files
+import { Flashcard } from "../flashcards/flashcard-types";
+import { MCQ } from "../MCQS/mcq-types";
+import { TrueFalseQuestion } from "../trueOrFalse/true-false-type";
+
+interface AudioSection {
+  title: string;
+  text: string;
+  startTime: number;
+  audioUrl?: string; // Store individual audio URL for each section
+}
+
+interface AudiobookSectionProps {
+  fileContent: string;
+  fileName: string;
+  isGenerating: boolean;
+  flashcards: Flashcard[]; // Use the proper type
+  mcqs: MCQ[]; // Use the proper type
+  trueFalseQuestions: TrueFalseQuestion[]; // Use the proper type
+  onGenerateAudio?: () => Promise<void>; // Optional callback
+  geminiApiKey?: string; // API key for Gemini
+  geminiApiEndpoint?: string; // API endpoint for Gemini text-to-speech
+}
+
+// Define AudioContext type for cross-browser compatibility
+interface AudioContextType {
+  AudioContext: typeof AudioContext;
+  webkitAudioContext?: typeof AudioContext;
+}
+
+// Define the return type for audio generation functions
+interface AudioGenerationResult {
+  audioUrl: string;
+  audioBlob: Blob;
+}
+
+export const AudiobookSection: React.FC<AudiobookSectionProps> = ({
+  fileContent,
+  fileName,
+  isGenerating,
+  flashcards,
+  mcqs,
+  trueFalseQuestions,
+  onGenerateAudio,
+  geminiApiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY || '', // Default from env var
+  geminiApiEndpoint = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent' // Default Gemini endpoint
+}) => {
+  // Audio state
+  const [isPlaying, setIsPlaying] = useState<boolean>(false);
+  const [currentTime, setCurrentTime] = useState<number>(0);
+  const [duration, setDuration] = useState<number>(0);
+  const [volume, setVolume] = useState<number>(0.8);
+  const [isMuted, setIsMuted] = useState<boolean>(false);
+  const [playbackRate, setPlaybackRate] = useState<number>(1);
+  const [audioSections, setAudioSections] = useState<AudioSection[]>([]);
+  const [currentSection, setCurrentSection] = useState<number>(0);
+  const [activeContent, setActiveContent] = useState<'summary' | 'flashcards' | 'mcq' | 'trueFalse'>('summary');
+  const [audioPrepared, setAudioPrepared] = useState<boolean>(false);
+  const [localIsGenerating, setLocalIsGenerating] = useState<boolean>(isGenerating);
+  const [audioError, setAudioError] = useState<boolean>(false);
+  const [errorMessage, setErrorMessage] = useState<string>('');
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [combinedAudioBlob, setCombinedAudioBlob] = useState<Blob | null>(null);
+  const [expanded, setExpanded] = useState<boolean>(false);
+  
+  // References
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  
+  // Update local generating state when prop changes
+  useEffect(() => {
+    setLocalIsGenerating(isGenerating);
+  }, [isGenerating]);
+
+  // Generate sections from content
+  useEffect(() => {
+    if (fileContent && !audioSections.length) {
+      generateSections();
+    }
+  }, [fileContent, flashcards, mcqs, trueFalseQuestions]);
+  
+  // Function to prepare audio sections from content
+  const generateSections = () => {
+    let sections: AudioSection[] = [
+      {
+        title: "Document Summary",
+        text: fileContent.length > 500 
+          ? fileContent.substring(0, 500) + "..." 
+          : fileContent,
+        startTime: 0
+      }
+    ];
+    
+    // Add flashcard sections
+    if (flashcards.length) {
+      flashcards.forEach((card, index) => {
+        sections.push({
+          title: `Flashcard ${index + 1}`,
+          text: `Question: ${card.question}\n\nAnswer: ${card.answer}`,
+          startTime: (index + 1) * 30 // Mock timing - would be based on actual audio in real impl
+        });
+      });
+    }
+    
+    // Add MCQ sections
+    if (mcqs.length) {
+      mcqs.forEach((mcq, index) => {
+        const optionsText = mcq.options.map((opt: string, i: number) => 
+          `Option ${i + 1}: ${opt}${i === mcq.correctAnswer ? ' (Correct)' : ''}`
+        ).join('\n');
+        
+        sections.push({
+          title: `Multiple Choice ${index + 1}`,
+          text: `Question: ${mcq.question}\n\n${optionsText}`,
+          startTime: (flashcards.length + index + 1) * 30
+        });
+      });
+    }
+    
+    // Add True/False sections
+    if (trueFalseQuestions.length) {
+      trueFalseQuestions.forEach((tf, index) => {
+        sections.push({
+          title: `True/False ${index + 1}`,
+          text: `Question: ${tf.question}\n\nAnswer: ${tf.isTrue ? 'True' : 'False'}`,
+          startTime: (flashcards.length + mcqs.length + index + 1) * 30
+        });
+      });
+    }
+    
+    setAudioSections(sections);
+  };
+
+  // Function to request text-to-speech from Gemini API
+  const generateAudioFromGemini = async (text: string): Promise<AudioGenerationResult> => {
+    try {
+      // For this implementation, we'll simulate text-to-speech using the Web Speech API
+      // since direct integration with Gemini API would require actual API endpoints and keys
+      const speech = new SpeechSynthesisUtterance(text);
+      speech.rate = 1;
+      speech.pitch = 1;
+      speech.volume = 1;
+      
+      // Create a promise that resolves when speech is complete
+      return new Promise((resolve, reject) => {
+        // Create a MediaRecorder to capture the audio
+        const audioChunks: Blob[] = [];
+        const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const destination = audioCtx.createMediaStreamDestination();
+        const mediaRecorder = new MediaRecorder(destination.stream);
+        
+        mediaRecorder.ondataavailable = (event) => {
+          audioChunks.push(event.data);
+        };
+        
+        mediaRecorder.onstop = () => {
+          const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+          const audioUrl = URL.createObjectURL(audioBlob);
+          resolve({ audioUrl, audioBlob });
+        };
+        
+        // Start recording and play speech
+        mediaRecorder.start();
+        window.speechSynthesis.speak(speech);
+        
+        speech.onend = () => {
+          mediaRecorder.stop();
+        };
+        
+        speech.onerror = (event) => {
+          reject(new Error('Speech synthesis failed'));
+        };
+      });
+    } catch (error) {
+      console.error('Error generating audio:', error);
+      throw error;
+    }
+  };
+
+  // Alternative implementation using a mock audio for demo purposes
+  const generateMockAudio = async (text: string): Promise<AudioGenerationResult> => {
+    try {
+      // Create an audio context
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      
+      // Create an oscillator node
+      const oscillator = audioContext.createOscillator();
+      oscillator.type = 'sine'; // sine, square, sawtooth, triangle
+      oscillator.frequency.setValueAtTime(440, audioContext.currentTime); // A4 note
+      
+      // Create a gain node to control volume
+      const gainNode = audioContext.createGain();
+      gainNode.gain.setValueAtTime(0.5, audioContext.currentTime);
+      
+      // Connect oscillator to gain node and gain node to audio context destination
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      // Create a MediaStreamDestination to capture the audio
+      const destination = audioContext.createMediaStreamDestination();
+      gainNode.connect(destination);
+      
+      // Create a MediaRecorder to record the audio
+      const mediaRecorder = new MediaRecorder(destination.stream);
+      const audioChunks: Blob[] = [];
+      
+      mediaRecorder.ondataavailable = (event) => {
+        audioChunks.push(event.data);
+      };
+      
+      return new Promise((resolve) => {
+        mediaRecorder.onstop = () => {
+          const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+          const audioUrl = URL.createObjectURL(audioBlob);
+          resolve({ audioUrl, audioBlob });
+        };
+        
+        // Start recording
+        mediaRecorder.start();
+        
+        // Start oscillator (sound generation)
+        oscillator.start();
+        
+        // Calculate duration based on text length (rough estimate)
+        const duration = Math.max(2, Math.min(10, text.length / 20));
+        
+        // Stop recording and oscillator after duration
+        setTimeout(() => {
+          oscillator.stop();
+          mediaRecorder.stop();
+        }, duration * 1000);
+      });
+    } catch (error) {
+      console.error('Error generating mock audio:', error);
+      throw error;
+    }
+  };
+  
+  // Function to try both audio generation methods
+  const generateAudio = async (text: string): Promise<AudioGenerationResult> => {
+    try {
+      // Try browser's speech synthesis first
+      if ('speechSynthesis' in window && window.MediaRecorder && window.AudioContext) {
+        return await generateAudioFromGemini(text);
+      } else {
+        // Fall back to mock audio if speech synthesis or MediaRecorder not available
+        return await generateMockAudio(text);
+      }
+    } catch (error) {
+      console.error('Error in audio generation:', error);
+      // Final fallback - create a silent audio file
+      const silentAudio = new Blob([new ArrayBuffer(10000)], { type: 'audio/wav' });
+      return { 
+        audioUrl: URL.createObjectURL(silentAudio),
+        audioBlob: silentAudio
+      };
+    }
+  };
+  
+  // Function to combine multiple audio blobs into one
+  const combineAudioBlobs = async (audioBlobs: Blob[]): Promise<string> => {
+    const blob = new Blob(audioBlobs, { type: 'audio/wav' });
+    return URL.createObjectURL(blob);
+  };
+
+  // Handle audio generation - defined within the component
+  const handleGenerateAudio = async () => {
+    try {
+      setLocalIsGenerating(true);
+      setAudioError(false);
+      setErrorMessage('');
+      
+      // Call the onGenerateAudio prop if provided
+      if (onGenerateAudio) {
+        await onGenerateAudio();
+      }
+      
+      // Generate audio for each section
+      const updatedSections = [...audioSections];
+      const audioBlobs: Blob[] = [];
+      
+      for (let i = 0; i < updatedSections.length; i++) {
+        const section = updatedSections[i];
+        const result = await generateAudio(section.text);
+        
+        updatedSections[i] = {
+          ...section,
+          audioUrl: result.audioUrl
+        };
+        
+        audioBlobs.push(result.audioBlob);
+      }
+      
+      // Combine all audio blobs
+      const combinedUrl = await combineAudioBlobs(audioBlobs);
+      setCombinedAudioBlob(new Blob(audioBlobs, { type: 'audio/wav' }));
+      
+      // Update the sections with their individual audio URLs
+      setAudioSections(updatedSections);
+      
+      // Set the main audio URL to the combined audio
+      setAudioUrl(combinedUrl);
+      
+      // Update UI state after successful generation
+      setAudioPrepared(true);
+      
+    } catch (error) {
+      console.error('Error generating audio:', error);
+      setAudioError(true);
+      setErrorMessage((error as Error)?.message || 'An error occurred during audio generation');
+    } finally {
+      setLocalIsGenerating(false);
+    }
+  };
+  
+  // Audio control functions
+  const togglePlayPause = () => {
+    if (audioRef.current) {
+      if (isPlaying) {
+        audioRef.current.pause();
+        setIsPlaying(false);
+      } else {
+        // Only attempt to play if we have a valid audio URL
+        if (audioUrl) {
+          // Handle play promise to avoid uncaught promise rejections
+          const playPromise = audioRef.current.play();
+          
+          if (playPromise !== undefined) {
+            playPromise
+              .then(() => {
+                setIsPlaying(true);
+              })
+              .catch(error => {
+                console.error("Error playing audio:", error);
+                setAudioError(true);
+                setErrorMessage('Browser could not play the audio: ' + (error as Error).message);
+                setIsPlaying(false);
+              });
+          }
+        } else {
+          // No audio URL available
+          setAudioError(true);
+          setErrorMessage('No audio available. Please generate audio first.');
+        }
+      }
+    }
+  };
+  
+  const handleTimeUpdate = () => {
+    if (audioRef.current) {
+      setCurrentTime(audioRef.current.currentTime);
+      
+      // Update current section based on time
+      const newSection = audioSections.findIndex((section, index, arr) => {
+        const nextSection = arr[index + 1];
+        if (nextSection) {
+          return audioRef.current!.currentTime >= section.startTime && 
+                 audioRef.current!.currentTime < nextSection.startTime;
+        } else {
+          return audioRef.current!.currentTime >= section.startTime;
+        }
+      });
+      
+      if (newSection !== -1 && newSection !== currentSection) {
+        setCurrentSection(newSection);
+      }
+    }
+  };
+  
+  const handleLoadedMetadata = () => {
+    if (audioRef.current) {
+      setDuration(audioRef.current.duration);
+      setAudioError(false);
+    }
+  };
+  
+  const handleAudioError = (e: React.SyntheticEvent<HTMLAudioElement, Event>) => {
+    // Extract meaningful error information
+    const target = e.target as HTMLAudioElement;
+    console.error("Audio error:", {
+      error: target.error,
+      networkState: target.networkState,
+      readyState: target.readyState
+    });
+    
+    setAudioError(true);
+    setErrorMessage(
+      target.error ? 
+        `Audio error: ${target.error.code} - ${target.error.message}` : 
+        'COMING SOON'
+    );
+    setIsPlaying(false);
+  };
+  
+  const handleSeek = (value: number[]) => {
+    if (audioRef.current) {
+      audioRef.current.currentTime = value[0];
+      setCurrentTime(value[0]);
+    }
+  };
+  
+  const handleVolumeChange = (value: number[]) => {
+    const newVolume = value[0];
+    if (audioRef.current) {
+      audioRef.current.volume = newVolume;
+      setVolume(newVolume);
+      if (newVolume === 0) {
+        setIsMuted(true);
+      } else {
+        setIsMuted(false);
+      }
+    }
+  };
+  
+  const toggleMute = () => {
+    if (audioRef.current) {
+      if (isMuted) {
+        audioRef.current.volume = volume;
+        setIsMuted(false);
+      } else {
+        audioRef.current.volume = 0;
+        setIsMuted(true);
+      }
+    }
+  };
+  
+  const changePlaybackRate = (rate: string) => {
+    const newRate = parseFloat(rate);
+    if (audioRef.current) {
+      audioRef.current.playbackRate = newRate;
+      setPlaybackRate(newRate);
+    }
+  };
+  
+  const jumpToSection = (index: number) => {
+    if (audioRef.current && audioSections[index]) {
+      audioRef.current.currentTime = audioSections[index].startTime;
+      setCurrentTime(audioSections[index].startTime);
+      setCurrentSection(index);
+      
+      if (!isPlaying && !audioError && audioUrl) {
+        const playPromise = audioRef.current.play();
+        if (playPromise !== undefined) {
+          playPromise
+            .then(() => {
+              setIsPlaying(true);
+            })
+            .catch(error => {
+              console.error("Error playing audio:", error);
+              setAudioError(true);
+              setErrorMessage('Error playing audio after jumping to section: ' + (error as Error).message);
+              setIsPlaying(false);
+            });
+        }
+      }
+    }
+  };
+  
+  const skipForward = () => {
+    if (audioRef.current) {
+      audioRef.current.currentTime += 10;
+      setCurrentTime(audioRef.current.currentTime);
+    }
+  };
+  
+  const skipBackward = () => {
+    if (audioRef.current) {
+      audioRef.current.currentTime -= 10;
+      setCurrentTime(audioRef.current.currentTime);
+    }
+  };
+  
+  const formatTime = (time: number) => {
+    const minutes = Math.floor(time / 60);
+    const seconds = Math.floor(time % 60);
+    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  };
+  
+  const handleDownload = () => {
+    if (combinedAudioBlob) {
+      const url = URL.createObjectURL(combinedAudioBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${fileName.replace(/\.[^/.]+$/, '') || 'audiobook'}.wav`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+  };
+  
+  const switchContent = (content: 'summary' | 'flashcards' | 'mcq' | 'trueFalse') => {
+    setActiveContent(content);
+    
+    // Find the first section of this type and jump to it
+    let index = 0;
+    
+    if (content === 'flashcards' && flashcards.length) {
+      index = audioSections.findIndex(section => section.title.includes("Flashcard"));
+    } else if (content === 'mcq' && mcqs.length) {
+      index = audioSections.findIndex(section => section.title.includes("Multiple Choice"));
+    } else if (content === 'trueFalse' && trueFalseQuestions.length) {
+      index = audioSections.findIndex(section => section.title.includes("True/False"));
+    }
+    
+    if (index !== -1) {
+      jumpToSection(index);
+    }
+  };
+  
+  // Filter sections based on active content
+  const filteredSections = audioSections.filter(section => {
+    if (activeContent === 'summary') return section.title.includes("Summary");
+    if (activeContent === 'flashcards') return section.title.includes("Flashcard");
+    if (activeContent === 'mcq') return section.title.includes("Multiple Choice");
+    if (activeContent === 'trueFalse') return section.title.includes("True/False");
+    return true;
+  });
+  
+  return (
+    <div className="space-y-6">
+      <ProAudiobookWrapper
+        fileContent={fileContent}
+        fileName={fileName}
+        isGenerating={false}
+        flashcards={flashcards}
+        mcqs={mcqs}
+        trueFalseQuestions={trueFalseQuestions}
+      />
+      <div className="flex justify-end mb-6">
+        <Button
+          onClick={handleGenerateAudio}
+          disabled={localIsGenerating}
+          className="flex items-center space-x-2"
+        >
+          {localIsGenerating ? (
+            <>
+              <RefreshCw className="h-4 w-4 animate-spin" />
+              <span>Generating Audio...</span>
+            </>
+          ) : !audioPrepared ? (
+            <>
+              <Play className="h-4 w-4" />
+              <span>Generate Audio</span>
+            </>
+          ) : (
+            <>
+              <RefreshCw className="h-4 w-4" />
+              <span>Regenerate Audio</span>
+            </>
+          )}
+        </Button>
+      </div>
+      
+      {/* Top controls section */}
+      <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => setExpanded(!expanded)}
+            className="mr-3"
+          >
+            {expanded ? 'Hide Text' : 'Show Text'}
+          </Button>
+        </div>
+      </div>
+      
+      {/* Audio element with source and proper error handling */}
+      <audio
+        ref={audioRef}
+        onTimeUpdate={handleTimeUpdate}
+        onLoadedMetadata={handleLoadedMetadata}
+        onEnded={() => setIsPlaying(false)}
+        onError={handleAudioError}
+        onPlay={() => setIsPlaying(true)}
+        onPause={() => setIsPlaying(false)}
+      >
+        {audioUrl && <source src={audioUrl} type="audio/wav" />}
+        Your browser does not support the audio element.
+      </audio>
+      
+      {/* Audio error notification */}
+      {audioError && (
+        <div className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 p-4 rounded-lg mb-4">
+          <div className="flex items-start">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+            </svg>
+            <div>
+              <p className="font-medium">Audio playback error</p>
+              <p className="text-sm mt-1">
+                {errorMessage || "The audio file couldn't be loaded or played. This could be because the audio hasn't been generated yet or there was an error in the generation process."}
+              </p>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleGenerateAudio} 
+                className="mt-2 text-red-600 border-red-300 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-900/30"
+                disabled={localIsGenerating}
+              >
+                {localIsGenerating ? 'Generating...' : 'Try again in X Number of Days'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {audioPrepared ? (
+        <>
+          {/* Content tabs */}
+          <div className="flex space-x-2 mb-4 overflow-x-auto pb-2">
+            <Button
+              variant={activeContent === 'summary' ? "default" : "outline"}
+              onClick={() => switchContent('summary')}
+              className="whitespace-nowrap"
+            >
+              Summary
+            </Button>
+            <Button
+              variant={activeContent === 'flashcards' ? "default" : "outline"}
+              onClick={() => switchContent('flashcards')}
+              className="whitespace-nowrap"
+              disabled={!flashcards.length}
+            >
+              Flashcards
+            </Button>
+            <Button
+              variant={activeContent === 'mcq' ? "default" : "outline"}
+              onClick={() => switchContent('mcq')}
+              className="whitespace-nowrap"
+              disabled={!mcqs.length}
+            >
+              Multiple Choice
+            </Button>
+            <Button
+              variant={activeContent === 'trueFalse' ? "default" : "outline"}
+              onClick={() => switchContent('trueFalse')}
+              className="whitespace-nowrap"
+              disabled={!trueFalseQuestions.length}
+            >
+              True/False
+            </Button>
+          </div>
+          
+          {/* Current section display */}
+          <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 mb-4">
+            <h3 className="text-lg font-medium mb-2">
+              {audioSections[currentSection]?.title || "Loading..."}
+            </h3>
+            <p className="whitespace-pre-line text-gray-700 dark:text-gray-300">
+              {audioSections[currentSection]?.text || "Content will appear here as the audio plays."}
+            </p>
+          </div>
+          
+          {/* Audio Player Controls */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+            {/* Progress bar */}
+            <div className="mb-4">
+              <Slider
+                value={[currentTime]}
+                min={0}
+                max={duration || 100}
+                step={0.1}
+                onValueChange={handleSeek}
+                className="w-full"
+                disabled={audioError || !audioUrl}
+              />
+              <div className="flex justify-between text-sm text-gray-500 mt-1">
+                <span>{formatTime(currentTime)}</span>
+                <span>{formatTime(duration)}</span>
+              </div>
+            </div>
+            
+            {/* Main controls */}
+            <div className="flex justify-between items-center mb-4">
+              <div className="flex items-center space-x-2">
+                <Select
+                  value={playbackRate.toString()}
+                  onValueChange={changePlaybackRate}
+                  disabled={audioError || !audioUrl}
+                >
+                  <SelectTrigger className="w-[70px]">
+                    <SelectValue placeholder={`${playbackRate}x`} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0.5">0.5x</SelectItem>
+                    <SelectItem value="0.75">0.75x</SelectItem>
+                    <SelectItem value="1">1x</SelectItem>
+                    <SelectItem value="1.25">1.25x</SelectItem>
+                    <SelectItem value="1.5">1.5x</SelectItem>
+                    <SelectItem value="2">2x</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={toggleMute}
+                  disabled={audioError || !audioUrl}
+                >
+                  {isMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+                </Button>
+                <div className="w-20">
+                  <Slider
+                    value={[isMuted ? 0 : volume]}
+                    min={0}
+                    max={1}
+                    step={0.01}
+                    onValueChange={handleVolumeChange}
+                    disabled={audioError || !audioUrl}
+                  />
+                </div>
+              </div>
+              
+              <div className="flex items-center space-x-4">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={skipBackward}
+                  className="rounded-full"
+                  disabled={audioError || !audioUrl}
+                >
+                  <SkipBack className="h-5 w-5" />
+                </Button>
+                <Button
+                  variant="default"
+                  size="icon"
+                  onClick={togglePlayPause}
+                  className="h-12 w-12 rounded-full"
+                  disabled={audioError || !audioUrl}
+                >
+                  {isPlaying ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6" />}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={skipForward}
+                  className="rounded-full"
+                  disabled={audioError || !audioUrl}
+                >
+                  <SkipForward className="h-5 w-5" />
+                </Button>
+              </div>
+              
+              <Button 
+                variant="outline" 
+                size="icon"
+                disabled={audioError || !audioUrl || !combinedAudioBlob}
+                onClick={handleDownload}
+              >
+                <Download className="h-5 w-5" />
+              </Button>
+            </div>
+            
+            {/* Section list */}
+            <div className="mt-6">
+              <h4 className="text-sm font-semibold mb-2">Sections</h4>
+              <div className="max-h-60 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-700">
+                {filteredSections.map((section, index) => (
+                  <button
+                    key={index}
+                    onClick={() => jumpToSection(audioSections.findIndex(s => s.title === section.title))}
+                    className={`w-full text-left py-2 px-3 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors ${
+                      section.title === audioSections[currentSection]?.title
+                        ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400"
+                        : ""
+                    }`}
+                    disabled={audioError || !audioUrl}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">{section.title}</span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                        {formatTime(section.startTime)}
+                      </span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </>
+      ) : (
+        // Placeholder when audio isn't generated yet
+        <div className="flex flex-col items-center justify-center p-12 bg-gray-50 dark:bg-gray-700 rounded-lg">
+          <div className="mb-4">
+            <img 
+              src="/learnit logo.png" 
+              alt="Audio icon placeholder" 
+              className="h-32 w-64 opacity-50"
+            />
+          </div>
+          <h3 className="text-xl font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Audio content not generated yet
+          </h3>
+          <p className="text-center text-gray-500 dark:text-gray-400 mb-6 max-w-md">
+            Generate audio to listen to a summary of your document and all quiz questions. Perfect for on-the-go learning.
+          </p>
+          <Button
+            onClick={handleGenerateAudio}
+            disabled={localIsGenerating}
+            className="flex items-center space-x-2"
+          >
+            {localIsGenerating ? (
+              <>
+                <RefreshCw className="h-4 w-4 animate-spin" />
+                <span>Generating Audio...</span>
+              </>
+            ) : (
+              <>
+                <Play className="h-4 w-4" />
+                <span>Generate Audio</span>
+              </>
+            )}
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+};
