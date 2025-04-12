@@ -11,7 +11,8 @@ public enum LiquidType
     Potassium,
     Water,
     SodiumChloride,
-    Chlorine
+    Chlorine,
+    Hcl,
 }
 
 public class PickBeaker : MonoBehaviour
@@ -67,6 +68,14 @@ public class PickBeaker : MonoBehaviour
         else if (liquidType == LiquidType.SodiumChloride)
         {
             material.SetColor("_Colour", Color.white);
+        }
+        else if (liquidType == LiquidType.Chlorine)
+        {
+            material.SetColor("_Colour", Color.grey);
+        }
+        else if (liquidType == LiquidType.Hcl)
+        {
+            material.SetColor("_Colour", Color.black);
         }
 
     }
