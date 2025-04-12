@@ -3,7 +3,7 @@
 import { FC, useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Menu, X, Users, LogOut, User, Settings, CreditCard, Star, Youtube } from "lucide-react";
+import { Menu, X, Users, LogOut, User, Settings, CreditCard, Star, Youtube, Trophy } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import ARVRNavButton from "../arvrButton/ArVrButton";
@@ -226,6 +226,16 @@ const Navigation: FC<NavigationProps> = () => {
           <span>Communities</span>
         </Link>
         
+        <Link
+              href="http://localhost:3000/manager"
+              className={`flex items-center space-x-1 font-medium py-2 ${isARVRPage
+                ? "text-amber-800 hover:text-amber-900"
+                : "text-purple-600 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300"}`}
+            >
+              <Trophy className="h-4 w-4" />
+              <span>hackit</span>
+            </Link>
+
         <Link
           href="/youtube-learning"
           className={`flex items-center space-x-1 font-medium ${isARVRPage
@@ -460,6 +470,16 @@ const Navigation: FC<NavigationProps> = () => {
             >
               <Users className="h-4 w-4" />
               <span>Communities</span>
+            </Link>
+
+            <Link
+              href="http://localhost:3000/manager"
+              className={`flex items-center space-x-1 font-medium py-2 ${isARVRPage
+                ? "text-amber-800 hover:text-amber-900"
+                : "text-purple-600 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300"}`}
+            >
+              <Trophy className="h-4 w-4" />
+              <span>hackit</span>
             </Link>
             
             <Link
