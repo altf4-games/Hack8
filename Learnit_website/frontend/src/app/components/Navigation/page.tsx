@@ -237,7 +237,7 @@ const Navigation: FC<NavigationProps> = () => {
         </Link>
         
         <Link
-              href="http://localhost:3000/manager"
+              href="https://hack8-me-mood.vercel.app/manager"
               className={`flex items-center space-x-1 font-medium py-2 ${isARVRPage
                 ? "text-amber-800 hover:text-amber-900"
                 : "text-purple-600 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300"}`}
@@ -483,7 +483,7 @@ const Navigation: FC<NavigationProps> = () => {
             </Link>
 
             <Link
-              href="http://localhost:3000/manager"
+              href="https://hack8-me-mood.vercel.app/manager"
               className={`flex items-center space-x-1 font-medium py-2 ${isARVRPage
                 ? "text-amber-800 hover:text-amber-900"
                 : "text-purple-600 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300"}`}
