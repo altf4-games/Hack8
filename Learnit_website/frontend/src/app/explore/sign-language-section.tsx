@@ -268,7 +268,7 @@ export function SignLanguageSection() {
         <Card className="bg-gray-50 border-dashed flex flex-col justify-center items-center p-8 h-80">
           <div className="text-center">
             <h3 className="text-xl font-medium mb-2">Sign Language Courses</h3>
-            <p className="text-gray-500 mb-6">Real course data would be displayed here</p>
+            <p className="text-gray-500 mb-6">Coming Soon</p>
             <Button variant="outline">Browse Courses</Button>
           </div>
         </Card>
@@ -278,14 +278,14 @@ export function SignLanguageSection() {
           <div className="aspect-video bg-gray-100 flex justify-center items-center">
             <iframe 
               className="w-full h-full"
-              src="https://drive.google.com/file/d/YOUR_GOOGLE_DRIVE_VIDEO_ID_1/preview" 
+              src="https://drive.google.com/file/d/1-LgOoUhc3MwcHtHcSsWC4EeOzzSSwufY/preview" 
               allow="autoplay; encrypted-media"
               title="Sign Language Video 1"
             ></iframe>
           </div>
           <div className="p-4">
-            <h3 className="font-semibold text-lg">Basic ASL Greetings</h3>
-            <p className="text-gray-500 text-sm mt-1">Learn common greeting signs in American Sign Language</p>
+            <h3 className="font-semibold text-lg">Alphabets in ISL</h3>
+            <p className="text-gray-500 text-sm mt-1">Learn alphabets in Indian Sign Language.</p>
           </div>
         </Card>
         
@@ -294,14 +294,14 @@ export function SignLanguageSection() {
           <div className="aspect-video bg-gray-100 flex justify-center items-center">
             <iframe 
               className="w-full h-full"
-              src="https://drive.google.com/file/d/YOUR_GOOGLE_DRIVE_VIDEO_ID_2/preview" 
+              src="https://drive.google.com/file/d/1WJWk196Hv8t1Tz55jsOOhnTU4tdEby-c/preview" 
               allow="autoplay; encrypted-media"
               title="Sign Language Video 2"
             ></iframe>
           </div>
           <div className="p-4">
-            <h3 className="font-semibold text-lg">Numbers in ASL</h3>
-            <p className="text-gray-500 text-sm mt-1">Learn to count from 1-20 using American Sign Language</p>
+            <h3 className="font-semibold text-lg">Numbers in ISL</h3>
+            <p className="text-gray-500 text-sm mt-1">Learn to count from 1-9 using Indian Sign Language</p>
           </div>
         </Card>
       </div>
